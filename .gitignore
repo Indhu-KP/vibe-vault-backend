@@ -1,3 +1,5 @@
 *.env
 *node_modules
 test-db.js
+server.js/api
+setting.json/.vscode
