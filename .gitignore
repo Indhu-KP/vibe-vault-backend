@@ -1,7 +1,3 @@
 *.env
 *node_modules
 test-db.js
-.env.example
-api/server.js
-.vscode/settings.json
-vercel.json
