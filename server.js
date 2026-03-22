@@ -11,55 +11,21 @@ app.use(express.json());
 const port = Number(process.env.PORT) || 5000;
 const connectionString = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
 
-const isLocalPg = /localhost|127\.0\.0\.1/.test(connectionString);
-let pool = null;
-let poolInitError = null;
-
-function initializePool() {
-    if (pool) return pool;
-    if (!connectionString) {
-        poolInitError = new Error('Missing DATABASE_URL (or SUPABASE_DB_URL)');
-        return null;
-    }
-
-    pool = new Pool({
-        connectionString,
-        ssl: isLocalPg ? false : { rejectUnauthorized: false },
-        max: 10,
-        min: 1,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 5000,
-        maxUses: 7500,
-    });
-
-    pool.on('error', (err) => {
-        console.error('PostgreSQL pool error:', err.message);
-    });
-
-    return pool;
+if (!connectionString) {
+    throw new Error('Missing DATABASE_URL (or SUPABASE_DB_URL)');
 }
 
-// Initialize pool asynchronously on first boot
-let poolReady = false;
-const poolPromise = (async () => {
-    try {
-        initializePool();
-        if (pool) {
-            await pool.query('SELECT NOW()');
-            poolReady = true;
-            console.log('Database pool initialized successfully');
-        }
-    } catch (err) {
-        console.error('Failed to initialize pool:', err.message);
-    }
-})();
+const isLocalPg = /localhost|127\.0\.0\.1/.test(connectionString);
+const pool = new Pool({
+    connectionString,
+    ssl: isLocalPg ? false : { rejectUnauthorized: false },
+});
 
+pool.on('error', (error) => {
+    console.error('Unexpected PostgreSQL error:', error.message);
+});
 
 async function dbQuery(text, params = []) {
-    const activePool = initializePool();
-    if (!activePool) {
-        throw new Error('Database not configured: ' + (poolInitError?.message || 'Unknown error'));
-    }
     const result = await pool.query(text, params);
     return result;
 }
