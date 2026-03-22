@@ -2,90 +2,32 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const { DB_PATH, PORT } = process.env;
+const port = Number(process.env.PORT) || 5000;
+const connectionString = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
 
-if (!DB_PATH) {
-    console.error('Missing required environment variable: DB_PATH');
-    process.exit(1);
+if (!connectionString) {
+    throw new Error('Missing DATABASE_URL (or SUPABASE_DB_URL)');
 }
 
-if (!PORT) {
-    console.error('Missing required environment variable: PORT');
-    process.exit(1);
-}
-
-const dbPath = DB_PATH;
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-        console.error('Failed to connect to SQLite database:', err.message);
-        process.exit(1);
-    }
-    console.log(`Connected to SQLite at ${dbPath}`);
+const isLocalPg = /localhost|127\.0\.0\.1/.test(connectionString);
+const pool = new Pool({
+    connectionString,
+    ssl: isLocalPg ? false : { rejectUnauthorized: false },
 });
 
-db.serialize(() => {
-    db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            user_id TEXT PRIMARY KEY,
-            title_hash TEXT NOT NULL,
-            title_salt TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS sessions (
-            session_token TEXT PRIMARY KEY,
-            user_id TEXT NOT NULL,
-            expires_at DATETIME NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS entries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            content TEXT NOT NULL,
-            sentiment_score REAL,
-            user_id TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
+pool.on('error', (error) => {
+    console.error('Unexpected PostgreSQL error:', error.message);
 });
 
-function runQuery(sql, params = []) {
-    return new Promise((resolve, reject) => {
-        db.run(sql, params, function onRun(err) {
-            if (err) return reject(err);
-            resolve({ id: this.lastID, changes: this.changes });
-        });
-    });
-}
-
-function allQuery(sql, params = []) {
-    return new Promise((resolve, reject) => {
-        db.all(sql, params, (err, rows) => {
-            if (err) return reject(err);
-            resolve(rows);
-        });
-    });
-}
-
-function getQuery(sql, params = []) {
-    return new Promise((resolve, reject) => {
-        db.get(sql, params, (err, row) => {
-            if (err) return reject(err);
-            resolve(row);
-        });
-    });
+async function dbQuery(text, params = []) {
+    const result = await pool.query(text, params);
+    return result;
 }
 
 function hashTitle(title, salt) {
@@ -110,10 +52,11 @@ async function requireAuth(req, res, next) {
             return res.status(401).json({ error: 'Missing or invalid Authorization header' });
         }
 
-        const session = await getQuery(
-            `SELECT session_token, user_id, expires_at FROM sessions WHERE session_token = ?`,
+        const sessionResult = await dbQuery(
+            `SELECT session_token, user_id, expires_at FROM sessions WHERE session_token = $1 LIMIT 1`,
             [token]
         );
+        const session = sessionResult.rows[0];
 
         if (!session) {
             return res.status(401).json({ error: 'Invalid session token' });
@@ -122,7 +65,7 @@ async function requireAuth(req, res, next) {
         const now = Date.now();
         const expiresAt = new Date(session.expires_at).getTime();
         if (!Number.isFinite(expiresAt) || expiresAt <= now) {
-            await runQuery(`DELETE FROM sessions WHERE session_token = ?`, [token]);
+            await dbQuery(`DELETE FROM sessions WHERE session_token = $1`, [token]);
             return res.status(401).json({ error: 'Session expired. Please log in again.' });
         }
 
@@ -148,15 +91,20 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     try {
-        const existing = await getQuery(`SELECT user_id FROM users WHERE user_id = ?`, [userId]);
+        const existingResult = await dbQuery(
+            `SELECT user_id FROM users WHERE user_id = $1 LIMIT 1`,
+            [userId]
+        );
+        const existing = existingResult.rows[0];
+
         if (existing) {
             return res.status(409).json({ error: 'User already exists' });
         }
 
         const salt = crypto.randomBytes(16).toString('hex');
         const titleHash = hashTitle(title, salt);
-        await runQuery(
-            `INSERT INTO users (user_id, title_hash, title_salt) VALUES (?, ?, ?)`,
+        await dbQuery(
+            `INSERT INTO users (user_id, title_hash, title_salt) VALUES ($1, $2, $3)`,
             [userId, titleHash, salt]
         );
 
@@ -176,10 +124,11 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     try {
-        const user = await getQuery(
-            `SELECT user_id, title_hash, title_salt FROM users WHERE user_id = ?`,
+        const userResult = await dbQuery(
+            `SELECT user_id, title_hash, title_salt FROM users WHERE user_id = $1 LIMIT 1`,
             [userId]
         );
+        const user = userResult.rows[0];
 
         if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
@@ -192,8 +141,8 @@ app.post('/api/auth/login', async (req, res) => {
 
         const token = generateSessionToken();
         const expiresAtIso = new Date(Date.now() + 1000 * 60 * 60 * 12).toISOString();
-        await runQuery(
-            `INSERT INTO sessions (session_token, user_id, expires_at) VALUES (?, ?, ?)`,
+        await dbQuery(
+            `INSERT INTO sessions (session_token, user_id, expires_at) VALUES ($1, $2, $3)`,
             [token, userId, expiresAtIso]
         );
 
@@ -210,7 +159,7 @@ app.post('/api/auth/login', async (req, res) => {
 // AUTH: Logout current session
 app.post('/api/auth/logout', requireAuth, async (req, res) => {
     try {
-        await runQuery(`DELETE FROM sessions WHERE session_token = ?`, [req.sessionToken]);
+        await dbQuery(`DELETE FROM sessions WHERE session_token = $1`, [req.sessionToken]);
         return res.json({ message: 'Logged out successfully' });
     } catch (error) {
         return res.status(400).json({ error: error.message });
@@ -229,20 +178,17 @@ app.post('/api/entries', requireAuth, async (req, res) => {
         const resolvedTitle = title?.trim() || 'Untitled';
         const resolvedSentiment = sentiment_score ?? sentiment ?? null;
 
-        const result = await runQuery(
-            `INSERT INTO entries (title, content, sentiment_score, user_id) VALUES (?, ?, ?, ?)`,
+        const insertResult = await dbQuery(
+            `INSERT INTO entries (title, content, sentiment_score, user_id)
+             VALUES ($1, $2, $3, $4)
+             RETURNING id, title, content, sentiment_score, user_id, created_at`,
             [resolvedTitle, content, resolvedSentiment, req.userId]
         );
+        const insertedEntry = insertResult.rows[0];
 
         res.status(201).json({
             message: 'Entry Saved!',
-            data: {
-                id: result.id,
-                title: resolvedTitle,
-                content,
-                sentiment_score: resolvedSentiment,
-                user_id: req.userId,
-            },
+            data: insertedEntry,
         });
     } catch (error) {
         res.status(400).json({ error: error.message });
@@ -252,14 +198,22 @@ app.post('/api/entries', requireAuth, async (req, res) => {
 // GET: Fetch all entries for a user
 app.get('/api/entries', requireAuth, async (req, res) => {
     try {
-        const data = await allQuery(
-            `SELECT * FROM entries WHERE user_id = ? ORDER BY datetime(created_at) DESC`,
+        const dataResult = await dbQuery(
+            `SELECT * FROM entries WHERE user_id = $1 ORDER BY created_at DESC`,
             [req.userId]
         );
-        res.json(data);
+        res.json(dataResult.rows);
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 });
 
-app.listen(Number(PORT), () => console.log(`Server active on port ${PORT}`));
+app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', storage: 'postgres' });
+});
+
+if (require.main === module) {
+    app.listen(port, () => console.log(`Server active on port ${port}`));
+}
+
+module.exports = app;
