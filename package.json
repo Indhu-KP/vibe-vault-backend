@@ -1,28 +1,25 @@
 {
-  "name": "vibe-vault-backend",
-  "version": "1.0.0",
-  "description": "",
-  "main": "server.js",
+  "name": "vibe-vault",
+  "version": "2.0.0",
+  "description": "Track your mood, save your thoughts, and see your story build up.",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Indhu-KP/vibe-vault-backend.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/Indhu-KP/vibe-vault-backend/issues"
-  },
-  "homepage": "https://github.com/Indhu-KP/vibe-vault-backend#readme",
   "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^17.3.1",
-    "express": "^5.2.1",
-    "sqlite3": "^6.0.1"
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "pg": "^8.13.3",
+    "dotenv": "^17.3.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

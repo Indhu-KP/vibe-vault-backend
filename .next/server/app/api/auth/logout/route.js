@@ -1,0 +1,24 @@
+"use strict";(()=>{var e={};e.id=716,e.ids=[716],e.modules={399:e=>{e.exports=require("next/dist/compiled/next-server/app-page.runtime.prod.js")},517:e=>{e.exports=require("next/dist/compiled/next-server/app-route.runtime.prod.js")},4770:e=>{e.exports=require("crypto")},8678:e=>{e.exports=import("pg")},5125:(e,t,r)=>{r.a(e,async(e,n)=>{try{r.r(t),r.d(t,{originalPathname:()=>p,patchFetch:()=>c,requestAsyncStorage:()=>E,routeModule:()=>l,serverHooks:()=>d,staticGenerationAsyncStorage:()=>T});var s=r(9303),i=r(8716),a=r(670),o=r(2491),u=e([o]);o=(u.then?(await u)():u)[0];let l=new s.AppRouteRouteModule({definition:{kind:i.x.APP_ROUTE,page:"/api/auth/logout/route",pathname:"/api/auth/logout",filename:"route",bundlePath:"app/api/auth/logout/route"},resolvedPagePath:"C:\\Users\\FixAccount\\New folder\\vibe-vault-backend\\app\\api\\auth\\logout\\route.js",nextConfigOutput:"",userland:o}),{requestAsyncStorage:E,staticGenerationAsyncStorage:T,serverHooks:d}=l,p="/api/auth/logout/route";function c(){return(0,a.patchFetch)({serverHooks:d,staticGenerationAsyncStorage:T})}n()}catch(e){n(e)}})},2491:(e,t,r)=>{r.a(e,async(e,n)=>{try{r.r(t),r.d(t,{POST:()=>u});var s=r(7070),i=r(4191),a=r(7999),o=e([i,a]);async function u(e){try{await (0,i.xN)();let t=(0,a.tv)(e.headers.get("authorization"));if(!t)return s.NextResponse.json({error:"Missing or invalid Authorization header"},{status:401});let r=await (0,a.je)(t);if(!r.valid)return s.NextResponse.json({error:r.error},{status:401});return await (0,i.Vn)("DELETE FROM sessions WHERE session_token = $1",[t]),s.NextResponse.json({message:"Logged out successfully"})}catch(e){return s.NextResponse.json({error:e.message},{status:400})}}[i,a]=o.then?(await o)():o,n()}catch(e){n(e)}})},7999:(e,t,r)=>{r.a(e,async(e,n)=>{try{r.d(t,{LC:()=>c,je:()=>E,qQ:()=>u,tv:()=>l});var s=r(4770),i=r.n(s),a=r(4191),o=e([a]);function u(e,t){return i().scryptSync(e,t,64).toString("hex")}function c(){return i().randomBytes(32).toString("hex")}function l(e){if(!e||"string"!=typeof e)return null;let[t,r]=e.split(" ");return"Bearer"===t&&r?r.trim():null}async function E(e){try{let t=await (0,a.pm)("SELECT session_token, user_id, expires_at FROM sessions WHERE session_token = $1",[e]);if(!t)return{valid:!1,error:"Invalid session token"};let r=Date.now(),n=new Date(t.expires_at).getTime();if(!Number.isFinite(n)||n<=r)return await (0,a.Vn)("DELETE FROM sessions WHERE session_token = $1",[e]),{valid:!1,error:"Session expired. Please log in again."};return{valid:!0,userId:t.user_id,sessionToken:e}}catch(e){return{valid:!1,error:"Authentication failed"}}}a=(o.then?(await o)():o)[0],n()}catch(e){n(e)}})},4191:(e,t,r)=>{r.a(e,async(e,n)=>{try{r.d(t,{Vn:()=>u,WR:()=>c,cK:()=>E,pm:()=>l,xN:()=>o});var s=r(8678),i=e([s]);s=(i.then?(await i)():i)[0];let T=null,d=null;function a(){if(!T){let e=process.env.SUPABASE_POOLER_URL||process.env.SUPABASE_DB_URL||process.env.DATABASE_URL;if(!e)throw Error("Missing required environment variable: SUPABASE_POOLER_URL, SUPABASE_DB_URL, or DATABASE_URL");(T=new s.Pool({connectionString:e,ssl:{rejectUnauthorized:!1},connectionTimeoutMillis:1e4,idleTimeoutMillis:3e4,max:10})).on("error",e=>{console.error("Unexpected pool error:",e),T=null})}return T}async function o(){try{let e=a();return await e.query("SELECT 1"),await e.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        user_id TEXT PRIMARY KEY,
+        title_hash TEXT NOT NULL,
+        title_salt TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `),await e.query(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        session_token TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users (user_id) ON DELETE CASCADE,
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `),await e.query(`
+      CREATE TABLE IF NOT EXISTS entries (
+        id BIGSERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        sentiment_score DOUBLE PRECISION,
+        user_id TEXT NOT NULL REFERENCES users (user_id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `),console.log("✅ Connected to Supabase PostgreSQL"),!0}catch(e){return d=e.message,console.error("❌ Database initialization failed:",e.message),!1}}async function u(e,t=[]){let r=a(),n=await r.query(e,t);return{id:n.rows[0]?.id??null,changes:n.rowCount}}async function c(e,t=[]){let r=a();return(await r.query(e,t)).rows}async function l(e,t=[]){let r=a();return(await r.query(e,t)).rows[0]||null}function E(){return d}n()}catch(e){n(e)}})}};var t=require("../../../../webpack-runtime.js");t.C(e);var r=e=>t(t.s=e),n=t.X(0,[276,972],()=>r(5125));module.exports=n})();
