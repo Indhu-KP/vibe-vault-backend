@@ -19,6 +19,7 @@
 }
 
 body {
+  padding-top: 0;
   font-family: 'Space Grotesk', sans-serif;
   background-color: var(--color-bg);
   color: var(--color-dark);
@@ -265,4 +266,35 @@ button:disabled {
   .bg-glow {
     display: none;
   }
+}
+
+.top-notification {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  color: white;
+  padding: 1rem 2rem;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+  z-index: 100;
+  box-shadow: var(--shadow-md);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.app-shell {
+  padding-top: 5rem;
 }
