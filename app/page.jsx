@@ -53,6 +53,30 @@ function pickMoodEmoji(emotion) {
   return emotion.emojis[idx];
 }
 
+function triggerEmojiRain(emotion, count = 18) {
+  if (typeof document === 'undefined') return;
+
+  const container = document.getElementById('emoji-container');
+  if (!container) return;
+
+  const emoji = pickMoodEmoji(emotion);
+
+  for (let i = 0; i < count; i += 1) {
+    const drop = document.createElement('span');
+    drop.className = 'emoji-drop';
+    drop.textContent = emoji;
+    drop.style.left = `${Math.random() * 100}%`;
+    drop.style.animationDuration = `${4 + Math.random() * 2.5}s`;
+    drop.style.animationDelay = `${Math.random() * 0.6}s`;
+    drop.style.fontSize = `${1.2 + Math.random() * 1.3}rem`;
+    container.appendChild(drop);
+
+    window.setTimeout(() => {
+      drop.remove();
+    }, 7000);
+  }
+}
+
 function analyzeSentiment(text) {
   const words = text.toLowerCase();
   const scores = {
@@ -205,6 +229,7 @@ export default function Home() {
     }
 
     setCurrentMood(emotion);
+    triggerEmojiRain(emotion);
     setTimeout(() => setStatus(''), 3000);
   };
 
@@ -295,108 +320,113 @@ export default function Home() {
   };
 
   return (
-    <div className="bg-glow bg-glow-a"></div>,
-    <div className="bg-glow bg-glow-b"></div>,
-    <main className="app-shell">
-      <section className="panel panel-compose" aria-label="Write a diary entry">
-        <h1>Vibe Vault</h1>
-        <p className="tagline">Track your mood, save your thoughts, and see your story build up.</p>
+    <>
+      {status && (
+        <div className="top-notification" role="status" aria-live="polite" aria-atomic="true">
+          {status}
+        </div>
+      )}
+      <div className="bg-glow bg-glow-a"></div>
+      <div className="bg-glow bg-glow-b"></div>
+      <div id="emoji-container" className="emoji-layer" aria-hidden="true"></div>
+      <main className="app-shell">
+        <section className="panel panel-compose" aria-label="Write a diary entry">
+          <h1>Vibe Vault</h1>
+          <p className="tagline">Track your mood, save your thoughts, and see your story build up.</p>
 
-        <div className="auth-block" aria-label="Account access">
-          <label htmlFor="userId">User ID</label>
+          <div className="auth-block" aria-label="Account access">
+            <label htmlFor="userId">User ID</label>
+            <input
+              id="userId"
+              placeholder="Choose your user ID"
+              maxLength="80"
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
+              disabled={isLoggedIn}
+            />
+
+            <label htmlFor="secretTitle">Secret title</label>
+            <input
+              id="secretTitle"
+              type="password"
+              placeholder="Use a private phrase"
+              maxLength="200"
+              value={secretTitle}
+              onChange={(e) => setSecretTitle(e.target.value)}
+              disabled={isLoggedIn}
+            />
+
+            <div className="actions-row auth-actions">
+              <button
+                id="registerBtn"
+                className="ghost-btn"
+                type="button"
+                onClick={handleRegister}
+                disabled={authBusy || isLoggedIn}
+              >
+                Register
+              </button>
+              <button
+                id="loginBtn"
+                type="button"
+                onClick={handleLogin}
+                disabled={authBusy || isLoggedIn}
+              >
+                Login
+              </button>
+              <button
+                id="logoutBtn"
+                className="ghost-btn"
+                type="button"
+                onClick={handleLogout}
+                disabled={!isLoggedIn}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+
+          <label htmlFor="title">Entry title</label>
           <input
-            id="userId"
-            placeholder="Choose your user ID"
+            id="title"
+            placeholder="Today felt like..."
             maxLength="80"
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
-            disabled={isLoggedIn}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
           />
 
-          <label htmlFor="secretTitle">Secret title</label>
-          <input
-            id="secretTitle"
-            type="password"
-            placeholder="Use a private phrase"
-            maxLength="200"
-            value={secretTitle}
-            onChange={(e) => setSecretTitle(e.target.value)}
-            disabled={isLoggedIn}
-          />
+          <label htmlFor="editor">Your note</label>
+          <textarea
+            id="editor"
+            placeholder="Write your thoughts..."
+            value={editor}
+            onChange={(e) => setEditor(e.target.value)}
+          ></textarea>
 
-          <div className="actions-row auth-actions">
-            <button
-              id="registerBtn"
-              className="ghost-btn"
-              type="button"
-              onClick={handleRegister}
-              disabled={authBusy || isLoggedIn}
-            >
-              Register
-            </button>
-            <button
-              id="loginBtn"
-              type="button"
-              onClick={handleLogin}
-              disabled={authBusy || isLoggedIn}
-            >
-              Login
-            </button>
-            <button
-              id="logoutBtn"
-              className="ghost-btn"
-              type="button"
-              onClick={handleLogout}
-              disabled={!isLoggedIn}
-            >
-              Logout
+          <div className="actions-row">
+            <button id="saveBtn" type="button" onClick={saveEntry}>
+              Save Entry
             </button>
           </div>
-        </div>
+        </section>
 
-        <label htmlFor="title">Entry title</label>
-        <input
-          id="title"
-          placeholder="Today felt like..."
-          maxLength="80"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-
-        <label htmlFor="editor">Your note</label>
-        <textarea
-          id="editor"
-          placeholder="Write your thoughts..."
-          value={editor}
-          onChange={(e) => setEditor(e.target.value)}
-        ></textarea>
-
-        <div className="actions-row">
-          <button id="saveBtn" type="button" onClick={saveEntry}>
-            Save Entry
-          </button>
-          <p id="status" className="status" aria-live="polite">
-            {status}
-          </p>
-        </div>
-      </section>
-
-      <section className="panel panel-feed" aria-label="Saved entries">
-        <div className="feed-header"></div>
-        <div id="feed">
-          {entries.length === 0 ? (
-            <p className="no-entries">No entries yet. Start writing!</p>
-          ) : (
-            entries.map((entry) => (
-              <div key={entry.id} className="entry-card">
-                <h3>{entry.title}</h3>
-                <p className="entry-date">{new Date(entry.created_at).toLocaleDateString()}</p>
-                <p className="entry-content">{entry.content}</p>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
-    </main>
+        <section className="panel panel-feed" aria-label="Saved entries">
+          <div className="feed-header"></div>
+          <div id="feed">
+            {entries.length === 0 ? (
+              <p className="no-entries">No entries yet. Start writing!</p>
+            ) : (
+              entries.map((entry) => (
+                <div key={entry.id} className="entry-card">
+                  <h3>{entry.title}</h3>
+                  <p className="entry-date">{new Date(entry.created_at).toLocaleDateString()}</p>
+                  <p className="entry-content">{entry.content}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      </main>
+    </>
   );
 }
