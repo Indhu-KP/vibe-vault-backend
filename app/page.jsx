@@ -24,7 +24,7 @@ const emotionMap = {
     class: 'mood-negative',
   },
   tired: {
-    keywords: ['tired', 'exhausted', 'sleepy', 'burnt out', '💤', '😮‍💨'],
+    keywords: ['tired', 'exhausted', 'sleepy', 'burnt out', 'stressed', '💤', '😮‍💨'],
     emojis: ['💤', '😮‍💨'],
     class: 'mood-tired',
   },
@@ -81,7 +81,7 @@ function analyzeSentiment(text) {
   const words = text.toLowerCase();
   const scores = {
     positive: ['happy', 'great', 'good', 'joyful', 'smiling', 'love', 'awesome', 'win', 'excited'],
-    negative: ['sad', 'depressed', 'upset', 'unhappy', 'cry', 'angry', 'mad', 'hate', 'furious', 'annoyed', 'tired', 'burnt out'],
+    negative: ['sad', 'depressed', 'upset', 'unhappy', 'cry', 'angry', 'mad', 'hate', 'furious', 'annoyed', 'tired', 'burnt out', 'stressed']
   };
 
   let positiveHits = 0;
@@ -132,6 +132,21 @@ export default function Home() {
       loadLocalEntries();
     }
   }, []);
+
+  useEffect(() => {
+    const text = editor.trim();
+    if (!text) return;
+
+    const timer = window.setTimeout(() => {
+      const emotion = detectEmotion(text);
+      setCurrentMood(emotion);
+      triggerEmojiRain(emotion, 10);
+    }, 700);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [editor]);
 
   const loadLocalEntries = () => {
     try {
@@ -430,3 +445,4 @@ export default function Home() {
     </>
   );
 }
+
